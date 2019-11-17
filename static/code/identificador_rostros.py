@@ -1,70 +1,99 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
+import time
+
 import tensorflow as tf
 from scipy import misc
 import cv2
 import numpy as np
 from static.code import facenet
 from static.code import detect_face
+from static.code.constantes import db_config
 import os
 import pickle
 import datetime
+import mysql.connector
 
 
-class identify_face:
+# noinspection SqlNoDataSourceInspection,SqlResolve
+class MySQLConector:
 
-    def __init__(self, path):
-        self.img_path = path
-        modeldir = os.path.join(os.path.dirname(__file__), 'model', '20170511-185253.pb')
+    def __init__(self):
+        self.mydb = mysql.connector.connect(**db_config)
+        self.cursor = self.mydb.cursor()
+
+    def insertar_evento(self, id, tipo, evento, dispositivo, direccion):
+        time.strftime('%Y-%m-%d %H:%M:%S')
+        query = 'INSERT INTO eventos (user_id, tipo_evento, evento, dispositivo, hora, direccion_img) ' \
+                'VALUES (%s, %s, %s, %s, %s, %s)'
+        self.cursor.execute(query, (id, tipo, evento, dispositivo, datetime.datetime.utcnow(), direccion))
+        self.mydb.commit()
+
+    def obtener_datos(self, tarjeta_id):
+        query = "SELECT * FROM usuarios WHERE (id_tarjeta) = '" + tarjeta_id + "'"
+        self.cursor.execute(query)
+        return self.cursor.fetchall()[0]
+
+    def cerrar_conexion(self):
+        self.cursor.close()
+        self.mydb.close()
+
+
+class Identificador:
+
+    def __init__(self, ubicacion):
+        self.img_dir = ubicacion
+        model_dir = os.path.join(os.path.dirname(__file__), 'model', '20170511-185253.pb')
         npy = os.path.join(os.path.dirname(__file__), 'npy')
-        train_img = os.path.join(os.path.dirname(__file__), '..', 'train_img')
+        # train_img = os.path.join(os.path.dirname(__file__), '..', 'train_img')
         with tf.Graph().as_default():
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
             self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
             with self.sess.as_default():
                 self.pnet, self.rnet, self.onet = detect_face.create_mtcnn(self.sess, npy)
-                HumanNames = ['daniel.beltran', 'daniel.rodriguez', 'fabian.chacon', 'laura.beltran', 'luis.valderrama',
-                              'miguel.ballen']
-                # HumanNames = os.listdir(train_img)
-                HumanNames.sort()
+                # HumanNames = ['daniel.beltran', 'daniel.rodriguez', 'fabian.chacon', 'laura.beltran', 'luis.valderrama',
+                #               'miguel.ballen']
+                # # HumanNames = os.listdir(train_img)
+                # HumanNames.sort()
                 print(str(datetime.datetime.utcnow()) + ' Loading feature extraction model')
-                facenet.load_model(modeldir)
+                facenet.load_model(model_dir)
                 self.images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
                 self.embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
                 self.phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
 
-    @property
-    def identify(self):
+    def identify(self, id_tarjeta, tipo, dispositivo):
         mensaje = dict()
         mensaje['list'] = []
+        conector = MySQLConector()
         classifier_filename = os.path.join(os.path.dirname(__file__), 'class', 'classifier.pkl')
-        train_img = os.path.join(os.path.dirname(__file__), '..', 'train_img')
+        # train_img = os.path.join(os.path.dirname(__file__), '..', 'train_img')
         with tf.Graph().as_default():
             with self.sess.as_default():
                 minsize = 20  # minimum size of face
                 threshold = [0.6, 0.7, 0.7]  # three steps's threshold
                 factor = 0.709  # scale factor
-                margin = 44
+                # margin = 44
                 frame_interval = 3
-                batch_size = 1000
+                # batch_size = 1000
                 image_size = 182
                 input_image_size = 160
-                HumanNames = ['daniel.beltran', 'daniel.rodriguez', 'fabian.chacon', 'laura.beltran', 'luis.valderrama',
-                              'miguel.ballen']
-                # HumanNames = os.listdir(train_img)
-                HumanNames.sort()
+                # lista_tarjetas = ['daniel.beltran', 'daniel.rodriguez', 'fabian.chacon', 'laura.beltran', 'luis.valderrama',
+                #              'miguel.ballen']
+                # lista_tarjetas = os.listdir(train_img)
+                # lista_tarjetas.sort()
                 embedding_size = self.embeddings.get_shape()[1]
 
                 classifier_filename_exp = os.path.expanduser(classifier_filename)
                 with open(classifier_filename_exp, 'rb') as infile:
-                    (model, class_names) = pickle.load(infile)
+                    (model, class_tarjetas) = pickle.load(infile)
 
-                HumanNames = [name for name in class_names if not name.startswith('Bounding')]
-                HumanNames.sort()
+                lista_tarjetas = [tarjeta for tarjeta in class_tarjetas if not tarjeta.lower().startswith('bounding')]
+                lista_tarjetas.sort()
                 c = 0
                 print(str(datetime.datetime.utcnow()) + ' Start Recognition!')
-                frame = cv2.imread(self.img_path, 0)
+                frame = cv2.imread(self.img_dir, 0)
                 timeF = frame_interval
 
                 if c % timeF == 0:
@@ -116,17 +145,34 @@ class identify_face:
                             if float(best_class_probabilities[0]) > float(0.5):
 
                                 print(str(datetime.datetime.utcnow()) + ' Result Indices: ', best_class_indices[0])
-                                for H_i in HumanNames:
-                                    # print(H_i)
-                                    if HumanNames[best_class_indices[0]] == H_i:
-                                        result_names = HumanNames[best_class_indices[0]]
-                                        mensaje['list'].append({
-                                            'name': result_names,
-                                            'proba': best_class_probabilities[0]
-                                        })
-                    else:
-                        print(str(datetime.datetime.utcnow()) + ' Unable to align')
-                # os.remove(self.img_path)
-                # cv2.imwrite(filePath, frame)
-                print(str(datetime.datetime.utcnow()) + ' ' + str(mensaje))
-                return mensaje
+
+                                result_names = lista_tarjetas[best_class_indices[0]]
+                                datos = conector.obtener_datos(result_names)
+                                if datos is not None and datos[-1] is not 0:
+                                    mensaje['list'].append({
+                                        'name': datos[1],
+                                        'proba': best_class_probabilities[0],
+                                        'id_tarjeta': id_tarjeta,
+                                        'autorizado': True
+                                    })
+                                    conector.insertar_evento(datos[0], tipo, 'Exitoso', dispositivo, self.img_dir)
+                                elif datos is not None and datos[-1] is 0:
+                                    mensaje['list'].append({
+                                        'name': datos[1],
+                                        'proba': best_class_probabilities[0],
+                                        'id_tarjeta': id_tarjeta,
+                                        'autorizado': False
+                                    })
+                                    conector.insertar_evento(datos[0], tipo, 'Fallido - No Activo', dispositivo,
+                                                             self.img_dir)
+                            else:
+                                datos = conector.obtener_datos(id_tarjeta)
+                                conector.insertar_evento(datos[0], tipo, 'Fallido - No Reconocido', dispositivo,
+                                                         self.img_dir)
+                else:
+                    print(str(datetime.datetime.utcnow()) + ' Unable to align')
+            # os.remove(self.img_path)
+            # cv2.imwrite(filePath, frame)
+            print(str(datetime.datetime.utcnow()) + ' ' + str(mensaje))
+            conector.cerrar_conexion()
+            return mensaje
