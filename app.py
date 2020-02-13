@@ -4,9 +4,12 @@ import uuid
 
 from flask import Flask, request, jsonify
 from static.code.identificador_rostros import Identificador
+from static.code.logger_handler import get_logger
 
 app = Flask(__name__)
-algo = Identificador('')
+identificador = Identificador('')
+
+logger = get_logger(__name__)
 
 
 @app.route("/upload", methods=['POST'])
@@ -16,12 +19,13 @@ def upload():
         if photo.filename != '':
             location = os.path.join('static', 'images', str(uuid.uuid4()) + photo.filename)
             photo.save(location)
-            algo.img_dir = location
-            print(str(datetime.datetime.utcnow()) + ' ID: ' + request.form.get('id'))
-            mensaje = algo.identify(request.form.get('id'), request.form.get('tipo'), request.form.get('dispositivo'))
+            identificador.img_dir = location
+            logger.debug('ID: ' + request.form.get('id'))
+            mensaje = identificador.identify(request.form.get('id'), request.form.get('tipo'),
+                                             request.form.get('dispositivo'))
             aut = {'list': []}
             for obj in mensaje.get('list'):
-                if obj.get('proba') > 0.5 and obj.get('autorizado') is True:
+                if obj.get('proba') > 0.01 and obj.get('autorizado') is True:
                     aut.get('list').append(obj)
             if len(aut.get('list')) > 0:
                 return jsonify(aut), 200
