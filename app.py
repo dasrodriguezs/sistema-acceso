@@ -12,7 +12,7 @@ identificador = Identificador('')
 logger = get_logger(__name__)
 
 
-@app.route("/upload", methods=['POST'])
+@app.route("/sistema-acceso/upload", methods=['POST'])
 def upload():
     if 'photo' in request.files:
         photo = request.files['photo']

@@ -143,7 +143,8 @@ class Identificador:
                             cv2.rectangle(frame, (bb[i][0], bb[i][1]), (bb[i][2], bb[i][3]), (0, 255, 0), 2)
                             text_x = bb[i][0]
                             text_y = bb[i][3] + 20
-                            cv2.putText(frame, 'Id: ' + result_names, (text_x, text_y + 30), cv2.FONT_HERSHEY_COMPLEX_SMALL,
+                            cv2.putText(frame, 'Id: ' + result_names, (text_x, text_y + 30),
+                                        cv2.FONT_HERSHEY_COMPLEX_SMALL,
                                         1, (0, 0, 255), thickness=1, lineType=2)
                             cv2.putText(frame, 'Proba: ' + str(best_class_probabilities[0]), (text_x, text_y),
                                         cv2.FONT_HERSHEY_COMPLEX_SMALL,
