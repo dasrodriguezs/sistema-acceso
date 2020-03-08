@@ -63,7 +63,7 @@ class Identificador:
                 self.embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
                 self.phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
 
-                classifier_filename = os.path.join(os.path.dirname(__file__), 'class', 'classifier_lfw-5-new.pkl')
+                classifier_filename = os.path.join(os.path.dirname(__file__), 'class', 'classifier_lfw-5-new-1.pkl')
                 classifier_filename_exp = os.path.expanduser(classifier_filename)
                 with open(classifier_filename_exp, 'rb') as infile:
                     (self.model, self.class_tarjetas) = pickle.load(infile)
