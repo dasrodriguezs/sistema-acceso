@@ -31,7 +31,7 @@ class MySQLConector:
         time.strftime('%Y-%m-%d %H:%M:%S')
         query = 'INSERT INTO sistema_acceso.eventos (user_id, tipo_evento, evento, dispositivo, hora, direccion_img) ' \
                 'VALUES (%s, %s, %s, %s, %s, %s)'
-        logger.debug(query, (id, tipo, evento, dispositivo, datetime.datetime.utcnow(), direccion))
+        # logger.debug(query, (id, tipo, evento, dispositivo, datetime.datetime.utcnow(), direccion))
         self.cursor.execute(query, (id, tipo, evento, dispositivo, datetime.datetime.utcnow(), direccion))
         self.mydb.commit()
 
