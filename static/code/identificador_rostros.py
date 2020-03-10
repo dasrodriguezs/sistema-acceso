@@ -155,7 +155,14 @@ class Identificador:
                             if float(best_class_probabilities[0]) > float(0.01):
 
                                 datos = conector.obtener_datos(id_tarjeta)
-                                if (datos is not None) and (datos[-1] is not 0) and (result_names == id_tarjeta):
+                                if datos[3] == 4:
+                                    mensaje['list'].append({
+                                        'name': datos[1],
+                                        'proba': 1,
+                                        'id_tarjeta': id_tarjeta,
+                                        'autorizado': True
+                                    })
+                                elif (datos is not None) and (datos[-1] is not 0) and (result_names == id_tarjeta):
                                     mensaje['list'].append({
                                         'name': datos[1],
                                         'proba': best_class_probabilities[0],
